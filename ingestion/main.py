@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import logging
 import sys
@@ -7,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load shared credentials before importing modules that read env vars at import time
-load_dotenv(Path.home() / ".claude" / ".env")
+load_dotenv(Path(__file__).resolve().parents[3] / ".claude" / ".env")
 load_dotenv()
 
 from toronto_parking.fetcher import fetch_available_years, fetch_year  # noqa: E402
@@ -53,7 +54,7 @@ def _run_year(year: int, engine) -> dict:
             df = prepare_for_db(df_raw)
 
             logger.info(f"[{year}] Upserting {len(df):,} rows")
-            inserted = upsert_dataframe(df, engine)
+            inserted = upsert_dataframe(df, engine, year=year)
             logger.info(f"[{year}] Done: {inserted:,} new rows inserted")
             return {"year": year, "status": "ok", "rows": inserted}
 
@@ -67,6 +68,11 @@ def _run_year(year: int, engine) -> dict:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--years", help="Comma-separated years to process, e.g. 2012,2013,2014")
+    parser.add_argument("--full-refresh", action="store_true", help="Re-process all available years")
+    args = parser.parse_args()
+
     engine_direct = get_engine(direct=True)
     engine = get_engine(direct=False)
 
@@ -79,17 +85,22 @@ def main() -> None:
     ensure_schema(engine_direct)
     ensure_table(engine_direct, available_years)
 
-    loaded_years = _loaded_years(engine)
-    logger.info(f"Already loaded years: {loaded_years or 'none'}")
-
-    current_year = datetime.date.today().year
-    if not loaded_years:
+    if args.years:
+        years_to_process = [int(y.strip()) for y in args.years.split(",")]
+        logger.info(f"Explicit years requested: {years_to_process}")
+    elif args.full_refresh:
         years_to_process = available_years
-        logger.info(f"First run: loading all {len(years_to_process)} available years")
+        logger.info(f"Full refresh: loading all {len(years_to_process)} available years")
     else:
-        # Incremental: re-process current year to pick up new tickets
-        years_to_process = [current_year] if current_year in available_years else [max(available_years)]
-        logger.info(f"Incremental run: processing year(s) {years_to_process}")
+        loaded_years = _loaded_years(engine)
+        logger.info(f"Already loaded years: {loaded_years or 'none'}")
+        current_year = datetime.date.today().year
+        if not loaded_years:
+            years_to_process = available_years
+            logger.info(f"First run: loading all {len(years_to_process)} available years")
+        else:
+            years_to_process = [current_year] if current_year in available_years else [max(available_years)]
+            logger.info(f"Incremental run: processing year(s) {years_to_process}")
 
     results = [_run_year(yr, engine) for yr in years_to_process]
 
