@@ -29,6 +29,20 @@ def _extract_year(name: str) -> Optional[int]:
     return int(match.group(1)) if match else None
 
 
+_ENCODINGS = ("utf-8", "utf-16", "latin-1", "cp1252")
+# Older years (pre-2020) use Latin-1/CP1252; 2021 ZIP contains .txt files not .csv
+
+
+def _read_csv_bytes(content: bytes) -> pd.DataFrame:
+    """Try multiple encodings; return first that parses cleanly."""
+    for enc in _ENCODINGS:
+        try:
+            return pd.read_csv(BytesIO(content), encoding=enc, low_memory=False)
+        except (UnicodeDecodeError, Exception):
+            continue
+    raise ValueError("Could not decode CSV with any known encoding")
+
+
 def _download_csv(resource: dict) -> pd.DataFrame:
     url = resource["url"]
     logger.info(f"Downloading from {url}")
@@ -39,13 +53,18 @@ def _download_csv(resource: dict) -> pd.DataFrame:
     fmt = resource.get("format", "").upper()
     if fmt == "ZIP" or url.lower().endswith(".zip"):
         with zipfile.ZipFile(BytesIO(content)) as zf:
-            csv_names = [n for n in zf.namelist() if n.lower().endswith(".csv")]
-            if not csv_names:
-                raise ValueError(f"No CSV found in ZIP: {url}")
-            with zf.open(csv_names[0]) as f:
-                return pd.read_csv(f, low_memory=False)
+            # Accept .csv or .txt — 2021 and some older files use .txt extension
+            tabular = [
+                n for n in zf.namelist()
+                if n.lower().endswith((".csv", ".txt")) and not n.startswith("__MACOSX")
+            ]
+            if not tabular:
+                raise ValueError(f"No tabular file found in ZIP: {url} — contents: {zf.namelist()}")
+            with zf.open(tabular[0]) as f:
+                raw = f.read()
+            return _read_csv_bytes(raw)
 
-    return pd.read_csv(BytesIO(content), low_memory=False)
+    return _read_csv_bytes(content)
 
 
 def fetch_available_years() -> list[int]:
