@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_parking_tickets
+    description: >
+      Staging model for Toronto parking tickets. One row per ticket.
+      Applies column renaming, type standardization, and null normalization.
+      No business logic — source fidelity is preserved.
+    columns:
+      - name: tag_number_masked
+        description: "Partially masked ticket number."
+        data_tests:
+          - not_null
+
+      - name: infraction_date
+        description: "Date the infraction was issued."
+        data_tests:
+          - not_null
+
+      - name: infraction_code
+        description: "Numeric infraction type code."
+
+      - name: infraction_description
+        description: "Text description of the infraction."
+
+      - name: set_fine_amount
+        description: "Prescribed fine in CAD."
+
+      - name: time_of_infraction
+        description: "Zero-padded HHMM string (e.g. '1430' = 2:30 PM)."
+
+      - name: location1
+        description: "Primary street or lot. NULL when blank."
+
+      - name: location2
+        description: "Cross-street or direction. NULL when blank."
+
+      - name: officer_tag_number
+        description: "Partially masked officer ID. NULL when blank."
+
+      - name: province
+        description: "Vehicle registration province. NULL when blank."

@@ -1,0 +1,75 @@
+name: Monthly Parking Tickets Pipeline
+
+on:
+  schedule:
+    # 6 AM UTC on the 1st of every month (EST: 1 AM, EDT: 2 AM)
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+    inputs:
+      full_refresh:
+        description: "Run dbt with --full-refresh (use for initial load or full rebuild)"
+        type: boolean
+        default: false
+
+jobs:
+  pipeline:
+    name: Ingest and Transform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ingestion dependencies
+        run: pip install -r ingestion/requirements.txt
+
+      - name: Run ingestion
+        run: python ingestion/main.py
+        env:
+          TORONTO_DATABASE_URL: ${{ secrets.TORONTO_DATABASE_URL }}
+          TORONTO_DATABASE_URL_DIRECT: ${{ secrets.TORONTO_DATABASE_URL_DIRECT }}
+
+      - name: Parse DB URL for dbt
+        run: |
+          python3 - <<'EOF'
+          import urllib.parse, os
+          url = urllib.parse.urlparse(os.environ["TORONTO_DATABASE_URL"])
+          vars = {
+              "TORONTO_PGHOST": url.hostname,
+              "TORONTO_PGPORT": str(url.port or 5432),
+              "TORONTO_PGDATABASE": url.path.lstrip("/"),
+              "TORONTO_PGUSER": url.username,
+              "TORONTO_PGPASSWORD": url.password,
+          }
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              for k, v in vars.items():
+                  f.write(f"{k}={v}\n")
+          EOF
+        env:
+          TORONTO_DATABASE_URL: ${{ secrets.TORONTO_DATABASE_URL }}
+
+      - name: Install dbt
+        run: pip install dbt-postgres>=1.8.0
+
+      - name: Run dbt
+        run: |
+          cd dbt
+          dbt deps
+          if [ "${{ github.event.inputs.full_refresh }}" = "true" ]; then
+            echo "Running dbt with --full-refresh"
+            dbt run --full-refresh
+          else
+            dbt run
+          fi
+          dbt test
+        env:
+          TORONTO_PGHOST: ${{ env.TORONTO_PGHOST }}
+          TORONTO_PGPORT: ${{ env.TORONTO_PGPORT }}
+          TORONTO_PGDATABASE: ${{ env.TORONTO_PGDATABASE }}
+          TORONTO_PGUSER: ${{ env.TORONTO_PGUSER }}
+          TORONTO_PGPASSWORD: ${{ env.TORONTO_PGPASSWORD }}
