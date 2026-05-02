@@ -1,10 +1,8 @@
 {{
     config(
         materialized='table',
-        indexes=[
-            {'columns': ['location_key'], 'unique': True},
-            {'columns': ['location1']},
-        ]
+        engine='MergeTree()',
+        order_by='location_key'
     )
 }}
 
@@ -27,11 +25,10 @@ select
                                     as location_key,
     location1,
     location2,
-    location1
-        || case
-            when location2 is not null and location2 != ''
-            then ' at ' || location2
-            else ''
-        end                         as location_display,
+    if(
+        isNotNull(location2) and location2 != '',
+        concat(location1, ' at ', location2),
+        location1
+    )                               as location_display,
     ticket_count
 from locations

@@ -12,7 +12,7 @@ load_dotenv(Path(__file__).resolve().parents[3] / ".claude" / ".env")
 load_dotenv()
 
 from toronto_parking.fetcher import fetch_available_years, fetch_year  # noqa: E402
-from toronto_parking.loader import ensure_schema, ensure_table, get_engine, upsert_dataframe  # noqa: E402
+from toronto_parking.loader import DATABASE, RAW_TABLE, ensure_database, ensure_table, get_client, upsert_dataframe  # noqa: E402
 from toronto_parking.transformer import prepare_for_db  # noqa: E402
 
 logging.basicConfig(
@@ -26,22 +26,19 @@ MAX_RETRIES = 3
 RETRY_DELAY = 30
 
 
-def _loaded_years(engine) -> list[int]:
-    from sqlalchemy import text
-
+def _loaded_years(client) -> list[int]:
     try:
-        with engine.connect() as conn:
-            rows = conn.execute(text("""
-                SELECT DISTINCT extract(year from date_of_infraction)::integer AS yr
-                FROM toronto.parking_tickets_raw
-                ORDER BY yr
-            """))
-            return [r[0] for r in rows]
+        result = client.query(
+            f"SELECT DISTINCT toYear(date_of_infraction) AS yr "
+            f"FROM {DATABASE}.{RAW_TABLE} "
+            f"ORDER BY yr"
+        )
+        return [row[0] for row in result.result_rows]
     except Exception:
         return []
 
 
-def _run_year(year: int, engine) -> dict:
+def _run_year(year: int, client) -> dict:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             logger.info(f"[{year}] Attempt {attempt}/{MAX_RETRIES}: fetching")
@@ -53,9 +50,9 @@ def _run_year(year: int, engine) -> dict:
             logger.info(f"[{year}] Fetched {len(df_raw):,} rows — transforming")
             df = prepare_for_db(df_raw)
 
-            logger.info(f"[{year}] Upserting {len(df):,} rows")
-            inserted = upsert_dataframe(df, engine, year=year)
-            logger.info(f"[{year}] Done: {inserted:,} new rows inserted")
+            logger.info(f"[{year}] Inserting {len(df):,} rows")
+            inserted = upsert_dataframe(df, client, year=year)
+            logger.info(f"[{year}] Done: {inserted:,} rows inserted")
             return {"year": year, "status": "ok", "rows": inserted}
 
         except Exception as exc:
@@ -73,8 +70,7 @@ def main() -> None:
     parser.add_argument("--full-refresh", action="store_true", help="Re-process all available years")
     args = parser.parse_args()
 
-    engine_direct = get_engine(direct=True)
-    engine = get_engine(direct=False)
+    client = get_client()
 
     available_years = fetch_available_years()
     if not available_years:
@@ -82,8 +78,8 @@ def main() -> None:
         sys.exit(1)
     logger.info(f"Available years in CKAN: {available_years}")
 
-    ensure_schema(engine_direct)
-    ensure_table(engine_direct, available_years)
+    ensure_database(client)
+    ensure_table(client)
 
     if args.years:
         years_to_process = [int(y.strip()) for y in args.years.split(",")]
@@ -92,7 +88,7 @@ def main() -> None:
         years_to_process = available_years
         logger.info(f"Full refresh: loading all {len(years_to_process)} available years")
     else:
-        loaded_years = _loaded_years(engine)
+        loaded_years = _loaded_years(client)
         logger.info(f"Already loaded years: {loaded_years or 'none'}")
         current_year = datetime.date.today().year
         if not loaded_years:
@@ -102,7 +98,7 @@ def main() -> None:
             years_to_process = [current_year] if current_year in available_years else [max(available_years)]
             logger.info(f"Incremental run: processing year(s) {years_to_process}")
 
-    results = [_run_year(yr, engine) for yr in years_to_process]
+    results = [_run_year(yr, client) for yr in years_to_process]
 
     total_inserted = sum(r.get("rows", 0) for r in results)
     failed = [r["year"] for r in results if r["status"] == "error"]
