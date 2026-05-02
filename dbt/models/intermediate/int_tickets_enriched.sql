@@ -17,38 +17,41 @@ enriched as (
         province,
 
         -- date dimensions
-        extract(year from infraction_date)::integer                 as infraction_year,
-        extract(month from infraction_date)::integer                as infraction_month,
-        extract(day from infraction_date)::integer                  as infraction_day,
-        extract(dow from infraction_date)::integer                  as day_of_week_num,
-        trim(to_char(infraction_date, 'Day'))                       as day_of_week_name,
-        extract(week from infraction_date)::integer                 as iso_week,
-        extract(quarter from infraction_date)::integer              as infraction_quarter,
+        toYear(infraction_date)                                         as infraction_year,
+        toMonth(infraction_date)                                        as infraction_month,
+        toDayOfMonth(infraction_date)                                   as infraction_day,
+        -- toDayOfWeek: 1=Mon...7=Sun; % 7 converts to Postgres-style 0=Sun...6=Sat
+        toDayOfWeek(infraction_date) % 7                                as day_of_week_num,
+        -- ClickHouse toDayOfWeek: 1=Mon...7=Sun; array is 1-indexed
+        ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][toDayOfWeek(infraction_date)]
+                                                                        as day_of_week_name,
+        toISOWeek(infraction_date)                                      as iso_week,
+        toQuarter(infraction_date)                                      as infraction_quarter,
 
         -- time dimensions (time_of_infraction is a 4-char HHMM string)
         case
-            when time_of_infraction ~ '^\d{4}$'
-            then left(time_of_infraction, 2)::integer
+            when match(time_of_infraction, '^\\d{4}$')
+            then toInt32(left(time_of_infraction, 2))
             else null
-        end                                                         as infraction_hour,
+        end                                                             as infraction_hour,
 
         case
-            when time_of_infraction ~ '^\d{4}$'
-                and left(time_of_infraction, 2)::integer between 6 and 11
+            when match(time_of_infraction, '^\\d{4}$')
+                and toInt32(left(time_of_infraction, 2)) between 6 and 11
             then 'Morning'
-            when time_of_infraction ~ '^\d{4}$'
-                and left(time_of_infraction, 2)::integer between 12 and 17
+            when match(time_of_infraction, '^\\d{4}$')
+                and toInt32(left(time_of_infraction, 2)) between 12 and 17
             then 'Afternoon'
-            when time_of_infraction ~ '^\d{4}$'
-                and left(time_of_infraction, 2)::integer between 18 and 22
+            when match(time_of_infraction, '^\\d{4}$')
+                and toInt32(left(time_of_infraction, 2)) between 18 and 22
             then 'Evening'
-            when time_of_infraction ~ '^\d{4}$'
+            when match(time_of_infraction, '^\\d{4}$')
             then 'Night'
             else null
-        end                                                         as time_of_day_bucket,
+        end                                                             as time_of_day_bucket,
 
-        -- weekend flag (0 = Sunday, 6 = Saturday in PostgreSQL)
-        extract(dow from infraction_date) in (0, 6)                as is_weekend
+        -- weekend flag: toDayOfWeek 6=Sat, 7=Sun
+        toDayOfWeek(infraction_date) in (6, 7)                         as is_weekend
     from source
 )
 

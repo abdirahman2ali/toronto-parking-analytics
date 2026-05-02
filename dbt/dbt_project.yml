@@ -18,6 +18,7 @@ clean-targets:
 
 models:
   toronto_parking_dbt:
+    +engine: MergeTree()
     staging:
       +materialized: view
       +schema: staging

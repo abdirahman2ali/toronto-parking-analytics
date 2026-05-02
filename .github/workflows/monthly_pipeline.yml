@@ -1,9 +1,8 @@
 name: Monthly Parking Tickets Pipeline
 
 on:
-  schedule:
-    # 6 AM UTC on the 1st of every month (EST: 1 AM, EDT: 2 AM)
-    - cron: "0 6 1 * *"
+  # Schedule removed — pipeline now runs locally against a local ClickHouse instance.
+  # Trigger manually from the GitHub Actions UI when needed.
   workflow_dispatch:
     inputs:
       full_refresh:

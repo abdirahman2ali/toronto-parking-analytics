@@ -1,10 +1,8 @@
 {{
     config(
         materialized='table',
-        indexes=[
-            {'columns': ['infraction_code_id'], 'unique': True},
-            {'columns': ['infraction_code'], 'unique': True},
-        ]
+        engine='MergeTree()',
+        order_by='infraction_code_id'
     )
 }}
 

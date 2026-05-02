@@ -1,14 +1,11 @@
 {{
     config(
         materialized='incremental',
+        engine='MergeTree()',
         unique_key='ticket_id',
         incremental_strategy='delete+insert',
-        indexes=[
-            {'columns': ['ticket_id'], 'unique': True},
-            {'columns': ['infraction_date']},
-            {'columns': ['infraction_code']},
-            {'columns': ['infraction_date', 'infraction_code']},
-        ]
+        order_by='(infraction_date, ticket_id)',
+        partition_by='toYear(infraction_date)'
     )
 }}
 
@@ -18,10 +15,22 @@ with source as (
         -- Re-process from the most recent date already in the table to catch late arrivals
         where infraction_date >= (select max(infraction_date) from {{ this }})
     {% endif %}
+),
+
+-- Deduplicate genuine source duplicates (identical rows in Toronto Open Data)
+deduped as (
+    select
+        *,
+        row_number() over (
+            partition by tag_number_masked, infraction_date, time_of_infraction,
+                         infraction_code, location2
+            order by tag_number_masked
+        ) as rn
+    from source
 )
 
 select
-    {{ dbt_utils.generate_surrogate_key(['tag_number_masked', 'infraction_date']) }}
+    {{ dbt_utils.generate_surrogate_key(['tag_number_masked', 'infraction_date', 'time_of_infraction', "toString(coalesce(infraction_code, 0))", 'location2']) }}
                                                     as ticket_id,
     tag_number_masked,
     infraction_date,
@@ -43,4 +52,5 @@ select
     infraction_hour,
     time_of_day_bucket,
     is_weekend
-from source
+from deduped
+where rn = 1
