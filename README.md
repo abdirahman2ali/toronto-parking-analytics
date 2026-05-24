@@ -4,7 +4,7 @@ End-to-end data pipeline processing 34.7M+ Toronto parking ticket records (2006�
 
 The pipeline answers questions like: which infractions are most common, which streets generate the most tickets, how enforcement patterns shift by month and year, and what the fine revenue composition looks like across violation types.
 
-**Stack:** Python · PostgreSQL (Neon) · dbt · GitHub Actions
+**Stack:** Python · ClickHouse · dbt · GitHub Actions
 
 ---
 
