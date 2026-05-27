@@ -1,0 +1,74 @@
+appearance:
+  default: dark
+  switcher: false
+
+theme:
+  colorPalettes:
+    default:
+      light:
+        - "#e8353a"
+        - "#3b8fe8"
+        - "#f4b548"
+        - "#4ade80"
+        - "#e879f9"
+        - "#fb923c"
+        - "#a5cdee"
+        - "#85c7c6"
+        - "#d2c6ac"
+        - "#8f3d56"
+      dark:
+        - "#e8353a"
+        - "#3b8fe8"
+        - "#f4b548"
+        - "#4ade80"
+        - "#e879f9"
+        - "#fb923c"
+        - "#a5cdee"
+        - "#85c7c6"
+        - "#d2c6ac"
+        - "#8f3d56"
+  colorScales:
+    default:
+      light:
+        - "#1a0a0b"
+        - "#e8353a"
+      dark:
+        - "#1a0a0b"
+        - "#e8353a"
+    blue:
+      light:
+        - "#0a0f1a"
+        - "#3b8fe8"
+      dark:
+        - "#0a0f1a"
+        - "#3b8fe8"
+  colors:
+    primary:
+      light: "#e8353a"
+      dark: "#e8353a"
+    accent:
+      light: "#3b8fe8"
+      dark: "#3b8fe8"
+    base:
+      light: "#ffffff"
+      dark: "#08080f"
+    info:
+      light: "#3b8fe8"
+      dark: "#3b8fe8"
+    positive:
+      light: "#4ade80"
+      dark: "#4ade80"
+    warning:
+      light: "#f4b548"
+      dark: "#f4b548"
+    negative:
+      light: "#e8353a"
+      dark: "#e8353a"
+
+plugins:
+  components:
+    "@evidence-dev/core-components": {}
+
+  datasources:
+    "@evidence-dev/csv": {}
+    "@evidence-dev/duckdb": {}
