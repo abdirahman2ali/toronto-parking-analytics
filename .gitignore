@@ -18,8 +18,4 @@ dbt/logs/
 dbt/.user.yml
 dbt/profiles.yml
 
-# Dashboard — generated CSVs are build artifacts; regenerate with export_sources.py
-# Exception: geocoded_locations.csv is committed after geocoding (expensive to regenerate)
-dashboard/sources/toronto_parking/*.csv
-!dashboard/sources/toronto_parking/geocoded_locations.csv
 
