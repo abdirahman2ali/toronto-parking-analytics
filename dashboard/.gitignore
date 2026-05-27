@@ -1,6 +1,0 @@
-.DS_Store
-.vscode/settings.json
-.env
-__pycache__/
-*.pyc
-.ruff_cache/

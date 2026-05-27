@@ -30,7 +30,8 @@ monthly as (
         countIf(time_of_day_bucket = 'Afternoon')                           as afternoon_ticket_count,
         countIf(time_of_day_bucket = 'Evening')                             as evening_ticket_count,
         countIf(time_of_day_bucket = 'Night')                               as night_ticket_count,
-        any(infraction_code)                                                as top_infraction_code
+        -- topK(1) returns approximate mode; sufficient for reporting
+        topK(1)(infraction_code)[1]                                         as top_infraction_code
     from facts
     group by infraction_year, infraction_month
 )
