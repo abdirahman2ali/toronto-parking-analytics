@@ -123,16 +123,12 @@ QUERIES: dict[str, str] = {
         GROUP BY day_of_week_num, day_of_week_name
         ORDER BY day_of_week_num
     """,
-    "locations": """
+    "top_streets": """
         SELECT
-            location_display,
-            location1,
+            street_address,
             ticket_count
-        FROM toronto_marts.dim_locations
-        WHERE location1 IS NOT NULL
-          AND location1 != ''
+        FROM toronto_marts.rpt_top_streets
         ORDER BY ticket_count DESC
-        LIMIT 100
     """,
 }
 
