@@ -54,3 +54,20 @@ models:
 
       - name: top_infraction_code
         description: "Most frequently issued infraction code in the month."
+
+  - name: rpt_top_streets
+    description: >
+      Top 100 streets by total ticket volume, aggregated across all qualifier
+      variants (NAN, NR, AT, E/S, etc.) that share the same street address.
+      Grain: one row per unique street address (location2).
+    columns:
+      - name: street_address
+        description: "Street address from the raw location2 field (e.g. '2075 BAYVIEW AVE')."
+        data_tests:
+          - not_null
+          - unique
+
+      - name: ticket_count
+        description: "Total tickets issued at this street address across all years."
+        data_tests:
+          - not_null
