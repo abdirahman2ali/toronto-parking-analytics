@@ -1,12 +1,6 @@
-.evidence/template
-.svelte-kit
-build
-node_modules
 .DS_Store
-static/data
-*.options.yaml
 .vscode/settings.json
 .env
-.evidence/meta
 __pycache__/
 *.pyc
+.ruff_cache/
